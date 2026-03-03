@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HB - PAY | Gestão de Câmbio</title>
+    <title>HB - PAY | Gestão de Câmbio 5.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --primary: #8a2be2; --bg: #0d0d0f; --sidebar: #16161a; --card: rgba(30, 30, 36, 0.9); --text: #f0f0f0; --usdt: #26a17b; --brl: #ffca3a; }
+        :root { --primary: #8a2be2; --bg: #0d0d0f; --sidebar: #16161a; --card: rgba(30, 30, 36, 0.9); --text: #f0f0f0; --usdt: #26a17b; --brl: #ffca3a; --danger: #ff4444; }
         
-        /* LOGIN */
         #lock-screen { position: fixed; top:0; left:0; width:100%; height:100%; background:var(--bg); display:flex; justify-content:center; align-items:center; z-index:9999; }
-        .login-box { background:var(--sidebar); padding:40px; border-radius:20px; border:1px solid var(--primary); text-align:center; }
+        .login-box { background:var(--sidebar); padding:40px; border-radius:20px; border:1px solid var(--primary); text-align:center; box-shadow: 0 0 20px rgba(138,43,226,0.3); }
         
-        /* SISTEMA */
         #system-content { display:none; width:100%; height:100vh; margin:0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; }
         
@@ -21,17 +19,30 @@
         
         .new-chat-btn { background: var(--primary); border: none; color: white; padding: 12px; border-radius: 8px; cursor: pointer; margin-bottom: 20px; font-weight: bold; width: 100%; }
         .report-header { background: var(--card); padding: 25px; border-radius: 15px; margin-bottom: 20px; border-left: 5px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
-        .grid-inputs { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 15px; background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; align-items: end; }
         
-        input, textarea { background: #2a2a32; border: 1px solid #444; padding: 12px; border-radius: 8px; color: white; width: 100%; box-sizing: border-box; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 12px; background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; align-items: end; }
+        
+        input, select, textarea { background: #2a2a32; border: 1px solid #444; padding: 12px; border-radius: 8px; color: white; width: 100%; box-sizing: border-box; }
+        
         table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; margin-top: 10px; }
-        th { text-align: left; padding: 12px; color: #777; font-size: 0.8rem; border-bottom: 1px solid #333; }
-        td { padding: 12px; border-bottom: 1px solid #222; }
+        th { text-align: left; padding: 12px; color: #777; font-size: 0.75rem; border-bottom: 1px solid #333; }
+        td { padding: 12px; border-bottom: 1px solid #222; font-size: 0.9rem; }
         
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
         .stat-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #333; }
-        .client-item { padding: 12px; border-radius: 8px; cursor: pointer; margin-bottom: 5px; background: #222; font-size: 0.9rem; }
+        
+        .payment-section { background: rgba(138, 43, 226, 0.05); border: 1px solid var(--primary); padding: 20px; border-radius: 15px; margin-top: 25px; }
+        .client-item { padding: 12px; border-radius: 8px; cursor: pointer; margin-bottom: 5px; background: #222; font-size: 0.85rem; }
         .client-item.active { background: var(--primary); font-weight: bold; }
+        
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+        .status-pendente { background: var(--danger); color: white; }
+        .status-recebido { background: var(--usdt); color: white; }
+        
+        /* CORES DO SALDO DINÂMICO */
+        .saldo-devedor { color: var(--danger) !important; font-weight: bold; }
+        .saldo-credito { color: var(--usdt) !important; font-weight: bold; }
+        
         .no-print { display: block; }
     </style>
 </head>
@@ -46,7 +57,7 @@
 </div>
 
 <div id="system-content">
-    <div class="sidebar">
+    <div class="sidebar no-print">
         <h2 style="color:var(--primary); text-align:center;">HB - PAY</h2>
         <button class="new-chat-btn" onclick="novoCliente()">+ Novo Relatório</button>
         <div id="listaClientes"></div>
@@ -55,43 +66,60 @@
     <div class="main-content" id="printable-area">
         <header class="report-header">
             <div>
-                <h2 id="display-client-name" style="margin:0;">Selecione um Cliente</h2>
-                <span id="display-date" style="font-size:0.8rem; color:#888;"></span>
+                <h2 id="display-client-name" style="margin:0;">HB - PAY</h2>
+                <span id="display-date" style="font-size:0.8rem; color:#888;">Controle de Balanço Financeiro</span>
             </div>
-            <input type="date" id="data_fechamento" style="width:auto;">
+            <input type="date" id="data_fechamento" class="no-print" style="width:auto;">
         </header>
 
         <div class="grid-inputs no-print">
-            <div><label style="font-size:10px; color:#888;">USDT</label><input type="number" id="in_usdt" placeholder="0.00" oninput="calcTotal()"></div>
-            <div><label style="font-size:10px; color:#888;">COTAÇÃO</label><input type="number" id="in_rate" step="0.0001" placeholder="0.0000" oninput="calcTotal()"></div>
-            <div><label style="font-size:10px; color:#888;">TOTAL BRL</label><input type="text" id="in_brl" readonly style="background:#1a1a1a;"></div>
-            <button class="new-chat-btn" style="margin:0; height:45px;" onclick="addRegistro()">Add</button>
+            <div><label style="font-size:10px; color:#888;">QTD USDT</label><input type="number" id="in_usdt" placeholder="0.00"></div>
+            <div><label style="font-size:10px; color:#888;">COTAÇÃO</label><input type="number" id="in_rate" step="0.0001" placeholder="0.0000"></div>
+            <div>
+                <label style="font-size:10px; color:#888;">STATUS ENVIO</label>
+                <select id="in_status">
+                    <option value="pendente">Pendente</option>
+                    <option value="recebido">Recebido</option>
+                </select>
+            </div>
+            <button class="new-chat-btn" style="margin:0; height:43px;" onclick="addRegistro()">Lançar USDT</button>
         </div>
 
         <table>
-            <thead><tr><th>VOLUME USDT</th><th>COTAÇÃO</th><th>SUBTOTAL BRL</th><th class="no-print">AÇÃO</th></tr></thead>
+            <thead><tr><th>VOL. USDT</th><th>COTAÇÃO</th><th>SUBTOTAL BRL</th><th>STATUS</th><th class="no-print">AÇÃO</th></tr></thead>
             <tbody id="tabela-corpo"></tbody>
         </table>
 
         <div class="stats">
-            <div class="stat-card"><small>TOTAL USDT</small><div id="total-usdt" style="font-size:1.2rem; color:var(--usdt);">₮ 0,00</div></div>
-            <div class="stat-card"><small>PREÇO MÉDIO</small><div id="media-cotacao" style="font-size:1.2rem; color:var(--brl);">R$ 0,00000</div></div>
-            <div class="stat-card"><small>TOTAL GERAL BRL</small><div id="total-brl-geral" style="font-size:1.2rem;">R$ 0,00</div></div>
+            <div class="stat-card"><small>TOTAL ACORDADO</small><div id="total-usdt" style="color:var(--usdt); font-weight:bold;">₮ 0,00</div></div>
+            <div class="stat-card"><small>USDT PENDENTE</small><div id="usdt-falta" style="color:var(--danger); font-weight:bold;">₮ 0,00</div></div>
+            <div class="stat-card"><small>PAGO (DÉBITOS)</small><div id="total-pago-brl" style="font-weight:bold;">R$ 0,00</div></div>
+            <div class="stat-card" id="card-saldo-final"><small id="label-saldo">SALDO (A PAGAR)</small><div id="saldo-final" style="font-size:1.1rem;">R$ 0,00</div></div>
+        </div>
+
+        <div class="payment-section">
+            <h3 style="margin:0 0 15px 0; font-size:1rem; color:var(--primary);">Pagamentos em Reais Enviados</h3>
+            <div class="grid-inputs no-print" style="background:transparent; padding:0; margin-bottom:10px; grid-template-columns: 1fr 1fr auto;">
+                <input type="number" id="pay_val" placeholder="Valor Pago R$">
+                <input type="text" id="pay_ref" placeholder="Ref: PIX / Comprovante">
+                <button class="new-chat-btn" style="margin:0; height:43px;" onclick="addPagamento()">Registrar PIX</button>
+            </div>
+            <div id="lista-pagos" style="font-size:0.8rem; border-top:1px solid #333; padding-top:10px;"></div>
         </div>
 
         <div class="stat-card" style="margin-top:20px;">
-            <small>OBSERVAÇÕES / CRÉDITOS</small>
-            <textarea id="obs-field" rows="3" style="margin-top:10px;" oninput="salvarObs()"></textarea>
+            <small>OBSERVAÇÕES GERAIS</small>
+            <textarea id="obs-field" rows="2" style="margin-top:10px;" oninput="salvarObs()"></textarea>
         </div>
 
-        <button class="new-chat-btn" style="background:#fff; color:#000; margin-top:20px;" onclick="gerarPDF()">Baixar PDF</button>
+        <button class="new-chat-btn no-print" style="background:#fff; color:#000; margin-top:20px;" onclick="gerarPDF()">Baixar Relatório PDF</button>
     </div>
 </div>
 
 <script>
     const SENHA = "hbpay2026";
-    let clientes = JSON.parse(localStorage.getItem('hb_pay_db')) || {};
-    let clienteAtual = null;
+    let db = JSON.parse(localStorage.getItem('hb_pay_v5_db')) || {};
+    let atual = null;
 
     function checkPass() {
         if(document.getElementById('pass-input').value === SENHA) {
@@ -101,88 +129,108 @@
         } else { alert("Senha incorreta!"); }
     }
 
-    function calcTotal() {
-        const u = parseFloat(document.getElementById('in_usdt').value) || 0;
-        const r = parseFloat(document.getElementById('in_rate').value) || 0;
-        document.getElementById('in_brl').value = (u * r).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-
     function novoCliente() {
-        const nome = prompt("Nome do Cliente:");
+        const nome = prompt("Nome do Fornecedor/Cliente:");
         if (!nome) return;
-        const id = "c_" + Date.now();
-        clientes[id] = { nome: nome, data: new Date().toISOString().split('T')[0], registros: [], obs: "" };
-        salvar();
-        renderSidebar();
-        selecionarCliente(id);
+        const id = "h_" + Date.now();
+        db[id] = { nome: nome, data: new Date().toISOString().split('T')[0], registros: [], pagos: [], obs: "" };
+        salvar(); renderSidebar(); selecionarCliente(id);
     }
 
     function selecionarCliente(id) {
-        clienteAtual = id;
-        const c = clientes[id];
-        document.getElementById('display-client-name').innerText = c.nome;
-        document.getElementById('data_fechamento').value = c.data;
-        document.getElementById('obs-field').value = c.obs || "";
-        renderTabela();
-        renderSidebar();
+        atual = id;
+        document.getElementById('display-client-name').innerText = db[id].nome;
+        document.getElementById('data_fechamento').value = db[id].data;
+        document.getElementById('obs-field').value = db[id].obs || "";
+        renderTabela(); renderSidebar();
     }
 
     function addRegistro() {
-        if (!clienteAtual) return alert("Clique em um cliente na barra lateral ou crie um novo!");
+        if (!atual) return alert("Selecione um cliente!");
         const u = parseFloat(document.getElementById('in_usdt').value);
         const r = parseFloat(document.getElementById('in_rate').value);
+        const s = document.getElementById('in_status').value;
         if (u && r) {
-            clientes[clienteAtual].registros.push({ usdt: u, rate: r });
-            salvar();
-            renderTabela();
-            document.getElementById('in_usdt').value = '';
-            document.getElementById('in_rate').value = '';
-            document.getElementById('in_brl').value = '';
+            db[atual].registros.push({ usdt: u, rate: r, status: s });
+            salvar(); renderTabela();
+            document.getElementById('in_usdt').value = ''; document.getElementById('in_rate').value = '';
+        }
+    }
+
+    function addPagamento() {
+        if (!atual) return alert("Selecione um cliente!");
+        const v = parseFloat(document.getElementById('pay_val').value);
+        const ref = document.getElementById('pay_ref').value || "S/ Ref";
+        if (v) {
+            db[atual].pagos.push({ valor: v, ref: ref });
+            salvar(); renderTabela();
+            document.getElementById('pay_val').value = ''; document.getElementById('pay_ref').value = '';
         }
     }
 
     function renderTabela() {
         const corpo = document.getElementById('tabela-corpo');
-        corpo.innerHTML = '';
-        let tUsdt = 0, tRate = 0, tBrl = 0;
-        const regs = clientes[clienteAtual].registros || [];
+        const listaPagos = document.getElementById('lista-pagos');
+        corpo.innerHTML = ''; listaPagos.innerHTML = '';
+        
+        let tUsdtTotal = 0, tUsdtFalta = 0, tBrlBruto = 0, tPagoBrl = 0;
+        const c = db[atual];
 
-        regs.forEach((reg, i) => {
-            tUsdt += reg.usdt; tRate += reg.rate; tBrl += (reg.usdt * reg.rate);
+        c.registros.forEach((reg, i) => {
+            tUsdtTotal += reg.usdt;
+            tBrlBruto += (reg.usdt * reg.rate);
+            if(reg.status === 'pendente') tUsdtFalta += reg.usdt;
+
             corpo.innerHTML += `<tr>
                 <td style="color:var(--usdt)">₮ ${reg.usdt.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
                 <td>R$ ${reg.rate.toFixed(5)}</td>
-                <td style="color:var(--brl)">R$ ${(reg.usdt * reg.rate).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                <td>R$ ${(reg.usdt * reg.rate).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+                <td><span class="status-badge status-${reg.status}">${reg.status}</span></td>
                 <td class="no-print"><button onclick="removerReg(${i})" style="color:red; background:none; border:none; cursor:pointer;">✕</button></td>
             </tr>`;
         });
 
-        document.getElementById('total-usdt').innerText = `₮ ${tUsdt.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
-        document.getElementById('media-cotacao').innerText = `R$ ${(regs.length ? tRate/regs.length : 0).toFixed(5)}`;
-        document.getElementById('total-brl-geral').innerText = `R$ ${tBrl.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        c.pagos.forEach((p, i) => {
+            tPagoBrl += p.valor;
+            listaPagos.innerHTML += `<div style="margin-bottom:4px;">💰 Enviado: R$ ${p.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})} | Ref: ${p.ref} <span class="no-print" onclick="removerPago(${i})" style="color:red; cursor:pointer; margin-left:8px;">[x]</span></div>`;
+        });
+
+        const saldoFinalBrl = tPagoBrl - tBrlBruto; // Positivo = Crédito, Negativo = Dívida
+        const saldoElement = document.getElementById('saldo-final');
+        const labelSaldo = document.getElementById('label-saldo');
+
+        document.getElementById('total-usdt').innerText = `₮ ${tUsdtTotal.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        document.getElementById('usdt-falta').innerText = `₮ ${tUsdtFalta.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        document.getElementById('total-pago-brl').innerText = `R$ ${tPagoBrl.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        
+        // Lógica de cores do Saldo
+        saldoElement.innerText = `R$ ${saldoFinalBrl.toLocaleString('pt-BR', {minimumFractionDigits:2})}`;
+        if(saldoFinalBrl < 0) {
+            saldoElement.className = "saldo-devedor";
+            labelSaldo.innerText = "SALDO (HB-PAY DEVE)";
+            document.getElementById('card-saldo-final').style.borderColor = "var(--danger)";
+        } else {
+            saldoElement.className = "saldo-credito";
+            labelSaldo.innerText = "SALDO (CRÉDITO HB-PAY)";
+            document.getElementById('card-saldo-final').style.borderColor = "var(--usdt)";
+        }
     }
 
+    function removerReg(i) { db[atual].registros.splice(i, 1); salvar(); renderTabela(); }
+    function removerPago(i) { db[atual].pagos.splice(i, 1); salvar(); renderTabela(); }
+    function salvarObs() { if(atual) { db[atual].obs = document.getElementById('obs-field').value; salvar(); } }
+    function salvar() { localStorage.setItem('hb_pay_v5_db', JSON.stringify(db)); }
     function renderSidebar() {
         const lista = document.getElementById('listaClientes');
         lista.innerHTML = '';
-        for (let id in clientes) {
+        for (let id in db) {
             const div = document.createElement('div');
-            div.className = `client-item ${id === clienteAtual ? 'active' : ''}`;
-            div.innerText = clientes[id].nome;
+            div.className = `client-item ${id === atual ? 'active' : ''}`;
+            div.innerText = db[id].nome;
             div.onclick = () => selecionarCliente(id);
             lista.appendChild(div);
         }
     }
-
-    function removerReg(i) { clientes[clienteAtual].registros.splice(i, 1); salvar(); renderTabela(); }
-    function salvarObs() { if(clienteAtual) { clientes[clienteAtual].obs = document.getElementById('obs-field').value; salvar(); } }
-    function salvar() { localStorage.setItem('hb_pay_db', JSON.stringify(clientes)); }
-    
     function gerarPDF() {
         const element = document.getElementById('printable-area');
-        const opt = { margin: 10, filename: `HB-PAY-${clientes[clienteAtual].nome}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-        html2pdf().set(opt).from(element).save();
-    }
-</script>
-</body>
-</html>
+        const opt = { margin: 10, filename: `HB-PAY-${db[atual].nome}.pdf`, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm',
