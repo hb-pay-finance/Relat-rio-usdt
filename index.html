@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HB - PAY | Gestão de Câmbio</title>
+    <title>HB - PAY | Acesso Restrito</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -15,6 +15,21 @@
             --usdt: #26a17b;
             --brl: #ffca3a;
         }
+
+        /* TELA DE LOGIN (BLINDAGEM) */
+        #lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+        }
+
+        .login-box {
+            background: var(--sidebar); padding: 40px; border-radius: 20px;
+            border: 1px solid var(--primary); text-align: center; box-shadow: 0 0 30px rgba(138, 43, 226, 0.2);
+        }
+
+        /* CONTEÚDO DO SISTEMA (ESCONDIDO INICIALMENTE) */
+        #system-content { display: none; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -30,7 +45,6 @@
             margin: 0; display: flex; height: 100vh; overflow: hidden;
         }
 
-        /* Opacidade da Marca D'água no fundo */
         body::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(13, 13, 15, 0.85); z-index: -1;
@@ -46,8 +60,7 @@
         .grid-inputs { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 15px; background: var(--card); padding: 20px; border-radius: 15px; margin-bottom: 20px; }
         
         input, select, textarea { background: #2a2a32; border: 1px solid #444; padding: 12px; border-radius: 8px; color: white; width: 100%; box-sizing: border-box; }
-        input:focus { border-color: var(--primary); outline: none; }
-
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--card); border-radius: 10px; }
         th { text-align: left; padding: 15px; color: #777; font-size: 0.8rem; }
         td { padding: 15px; border-bottom: 1px solid #333; }
@@ -66,70 +79,108 @@
 </head>
 <body>
 
-<div class="sidebar no-print">
-    <h2 style="color:var(--primary); text-align:center;">HB - PAY</h2>
-    <button class="new-chat-btn" onclick="novoCliente()">+ Novo Relatório</button>
-    <div id="listaClientes"></div>
+<div id="lock-screen">
+    <div class="login-box">
+        <h1 style="color: var(--primary); margin-bottom: 10px;">HB - PAY</h1>
+        <p style="color: #888; margin-bottom: 25px;">Sistema de Fechamento Restrito</p>
+        <input type="password" id="pass-input" placeholder="Digite a chave de acesso" style="text-align: center; margin-bottom: 15px;">
+        <button class="new-chat-btn" style="width: 100%;" onclick="checkPass()">Entrar no Sistema</button>
+        <p id="error-msg" style="color: #ff5555; margin-top: 15px; font-size: 0.8rem; display: none;">Chave incorreta. Tente novamente.</p>
+    </div>
 </div>
 
-<div class="main-content" id="printable-area">
-    <div id="content-wrapper">
-        <header class="report-header">
-            <div>
-                <h1 style="margin:0;">HB - PAY</h1>
-                <h3 id="display-client-name" style="color:var(--primary); margin:5px 0;">Selecione um cliente</h3>
+<div id="system-content" style="width: 100%; height: 100%; display: none;">
+    <div class="sidebar no-print">
+        <h2 style="color:var(--primary); text-align:center;">HB - PAY</h2>
+        <button class="new-chat-btn" onclick="novoCliente()">+ Novo Relatório</button>
+        <div id="listaClientes"></div>
+    </div>
+
+    <div class="main-content" id="printable-area">
+        <div id="content-wrapper">
+            <header class="report-header">
+                <div>
+                    <h1 style="margin:0;">HB - PAY</h1>
+                    <h3 id="display-client-name" style="color:var(--primary); margin:5px 0;">Selecione um cliente</h3>
+                </div>
+                <div style="text-align: right;">
+                    <label>Data do Fechamento:</label><br>
+                    <input type="date" id="data_fechamento" style="width: auto; margin-top:5px;">
+                </div>
+            </header>
+
+            <div class="grid-inputs no-print">
+                <div><label>Qtd USDT</label><input type="number" id="in_usdt" placeholder="0.00" oninput="calcTotal()"></div>
+                <div><label>Cotação</label><input type="number" id="in_rate" step="0.0001" placeholder="0.0000" oninput="calcTotal()"></div>
+                <div><label>Total BRL</label><input type="text" id="in_brl" readonly placeholder="Calculado auto"></div>
+                <button class="btn-add" onclick="addRegistro()">Add</button>
             </div>
-            <div style="text-align: right;">
-                <label>Data do Fechamento:</label><br>
-                <input type="date" id="data_fechamento" style="width: auto; margin-top:5px;">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Volume USDT</th>
+                        <th>Cotação</th>
+                        <th>Subtotal BRL</th>
+                        <th class="no-print">Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-corpo"></tbody>
+            </table>
+
+            <div class="stats">
+                <div class="stat-card"><small>VOLUME TOTAL</small><div id="total-usdt" style="font-size: 1.4rem; color: var(--usdt);">₮ 0,00</div></div>
+                <div class="stat-card"><small>PREÇO MÉDIO</small><div id="media-cotacao" style="font-size: 1.4rem; color: var(--brl);">R$ 0,00000</div></div>
+                <div class="stat-card"><small>TOTAL A PAGAR</small><div id="total-brl-geral" style="font-size: 1.4rem; color: #fff;">R$ 0,00</div></div>
             </div>
-        </header>
 
-        <div class="grid-inputs no-print">
-            <div><label>Qtd USDT</label><input type="number" id="in_usdt" placeholder="0.00" oninput="calcTotal()"></div>
-            <div><label>Cotação</label><input type="number" id="in_rate" step="0.0001" placeholder="0.0000" oninput="calcTotal()"></div>
-            <div><label>Total BRL</label><input type="text" id="in_brl" readonly placeholder="Calculado auto"></div>
-            <button class="btn-add" onclick="addRegistro()">Add</button>
-        </div>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Volume USDT</th>
-                    <th>Cotação</th>
-                    <th>Subtotal BRL</th>
-                    <th class="no-print">Ação</th>
-                </tr>
-            </thead>
-            <tbody id="tabela-corpo"></tbody>
-        </table>
-
-        <div class="stats">
-            <div class="stat-card"><small>VOLUME TOTAL</small><div id="total-usdt" style="font-size: 1.4rem; color: var(--usdt);">₮ 0,00</div></div>
-            <div class="stat-card"><small>PREÇO MÉDIO</small><div id="media-cotacao" style="font-size: 1.4rem; color: var(--brl);">R$ 0,00000</div></div>
-            <div class="stat-card"><small>TOTAL A PAGAR</small><div id="total-brl-geral" style="font-size: 1.4rem; color: #fff;">R$ 0,00</div></div>
-        </div>
-
-        <div class="payment-section">
-            <h3 style="margin-top:0;">Pagamentos Enviados (HB - PAY → Fornecedor)</h3>
-            <div class="grid-inputs no-print" style="background:transparent; padding:0;">
-                <input type="number" id="pay_val" placeholder="Valor Pago R$">
-                <input type="text" id="pay_ref" placeholder="Referência (ex: Comprovante 1)">
-                <button class="btn-add" onclick="addPagamento()">Registrar Pago</button>
+            <div class="payment-section">
+                <h3 style="margin-top:0;">Pagamentos Enviados (HB - PAY → Fornecedor)</h3>
+                <div class="grid-inputs no-print" style="background:transparent; padding:0;">
+                    <input type="number" id="pay_val" placeholder="Valor Pago R$">
+                    <input type="text" id="pay_ref" placeholder="Referência">
+                    <button class="btn-add" onclick="addPagamento()">Registrar Pago</button>
+                </div>
+                <div id="lista-pagos" style="margin-top:15px; font-size:0.9rem;"></div>
             </div>
-            <div id="lista-pagos" style="margin-top:15px; font-size:0.9rem;"></div>
-        </div>
 
-        <div class="stat-card" style="margin-top:20px;">
-            <small>CRÉDITOS / OBSERVAÇÕES TÉCNICAS</small>
-            <textarea id="obs-field" rows="3" oninput="salvarObs()"></textarea>
-        </div>
+            <div class="stat-card" style="margin-top:20px;">
+                <small>CRÉDITOS / OBSERVAÇÕES TÉCNICAS</small>
+                <textarea id="obs-field" rows="3" oninput="salvarObs()"></textarea>
+            </div>
 
-        <button class="btn-pdf no-print" onclick="gerarPDF()">Gerar Relatório Profissional (PDF)</button>
+            <button class="btn-pdf no-print" onclick="gerarPDF()">Gerar Relatório Profissional (PDF)</button>
+        </div>
     </div>
 </div>
 
 <script>
+    // --- LÓGICA DE BLINDAGEM ---
+    const SEGREDOHASH = "Lima007"; // <--- MUDE SUA SENHA AQUI
+
+    function checkPass() {
+        const input = document.getElementById('pass-input').value;
+        if(input === SEGREDOHASH) {
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('system-content').style.display = 'flex';
+            sessionStorage.setItem('hb_auth', 'true');
+        } else {
+            document.getElementById('error-msg').style.display = 'block';
+        }
+    }
+
+    // Verificar se já logou nesta sessão
+    if(sessionStorage.getItem('hb_auth') === 'true') {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('system-content').style.display = 'flex';
+    }
+
+    // Permitir "Enter" no campo de senha
+    document.getElementById('pass-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkPass();
+    });
+
+    // --- LÓGICA DO SISTEMA ---
     let clientes = JSON.parse(localStorage.getItem('hb_pay_data')) || {};
     let clienteAtual = null;
 
@@ -159,6 +210,7 @@
     }
 
     function addRegistro() {
+        if(!clienteAtual) return alert("Crie ou selecione um cliente primeiro!");
         const u = parseFloat(document.getElementById('in_usdt').value);
         const r = parseFloat(document.getElementById('in_rate').value);
         if (u && r) {
@@ -171,6 +223,7 @@
     }
 
     function addPagamento() {
+        if(!clienteAtual) return alert("Crie ou selecione um cliente primeiro!");
         const val = parseFloat(document.getElementById('pay_val').value);
         const ref = document.getElementById('pay_ref').value;
         if (val) {
@@ -202,9 +255,7 @@
             </tr>`;
         });
 
-        let totalPago = 0;
         clientes[clienteAtual].pagos.forEach((p, i) => {
-            totalPago += p.valor;
             listaPagos.innerHTML += `<div>🟢 Pago: R$ ${p.valor.toLocaleString('pt-BR')} | Ref: ${p.ref} <span class="no-print" onclick="removerPago(${i})" style="cursor:pointer; color:red; margin-left:10px;">[remover]</span></div>`;
         });
 
@@ -228,8 +279,14 @@
     }
 
     function gerarPDF() {
+        if(!clienteAtual) return alert("Selecione um cliente para gerar o PDF.");
         const element = document.getElementById('printable-area');
-        const opt = { margin: 10, filename: `HB-PAY_${clientes[clienteAtual].nome}.pdf`, html2canvas: { scale: 2, backgroundColor: "#0d0d0f" }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+        const opt = { 
+            margin: 10, 
+            filename: `HB-PAY_${clientes[clienteAtual].nome}.pdf`, 
+            html2canvas: { scale: 2, backgroundColor: "#0d0d0f" }, 
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+        };
         html2pdf().set(opt).from(element).save();
     }
 </script>
